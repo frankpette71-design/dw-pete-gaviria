@@ -5,6 +5,9 @@ version = "0.1.0"
 dependencies = [
     "dagster",
     "dagster-cloud>=1.13.26",
+    "dagster-gcp",
+    "pandas",
+    "pyarrow",
 ]
 
 [dependency-groups]
@@ -28,5 +31,3 @@ root_module = "dw_pete_gaviria"
 registry_modules = [
     "dw_pete_gaviria.components.*",
 ]
-
-
