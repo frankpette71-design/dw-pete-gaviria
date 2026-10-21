@@ -122,19 +122,19 @@ def _consulta_escalar(bq: BigQueryResource, sql: str):
 # ---------------------------------------------------------------------------
 # 1. EXTRACCIÓN (fuente -> nube)
 # ---------------------------------------------------------------------------
-@asset(key_prefix=[TEAM], group_name="extraccion", retry_policy=REINTENTOS,
+@asset(key_prefix=[TEAM], group_name=f"{TEAM}_extraccion", retry_policy=REINTENTOS,
        description="listings.csv.gz de Inside Airbnb cargado sin transformar en BigQuery")
 def raw_listings(context: AssetExecutionContext, bigquery_dw: BigQueryResource):
     return _cargar_csv_a_raw(context, bigquery_dw, "URL_LISTINGS", "raw_listings", COLUMNAS_LISTINGS)
 
 
-@asset(key_prefix=[TEAM], group_name="extraccion", retry_policy=REINTENTOS,
+@asset(key_prefix=[TEAM], group_name=f"{TEAM}_extraccion", retry_policy=REINTENTOS,
        description="reviews.csv (una fila por reseña: listing_id, date) cargado sin transformar")
 def raw_reviews(context: AssetExecutionContext, bigquery_dw: BigQueryResource):
     return _cargar_csv_a_raw(context, bigquery_dw, "URL_REVIEWS", "raw_reviews")
 
 
-@asset(key_prefix=[TEAM], group_name="extraccion", retry_policy=REINTENTOS,
+@asset(key_prefix=[TEAM], group_name=f"{TEAM}_extraccion", retry_policy=REINTENTOS,
        description="neighbourhoods.csv (catálogo de barrios) cargado sin transformar")
 def raw_neighbourhoods(context: AssetExecutionContext, bigquery_dw: BigQueryResource):
     return _cargar_csv_a_raw(context, bigquery_dw, "URL_NEIGHBOURHOODS", "raw_neighbourhoods")
@@ -143,7 +143,7 @@ def raw_neighbourhoods(context: AssetExecutionContext, bigquery_dw: BigQueryReso
 # ---------------------------------------------------------------------------
 # 2. TRANSFORMACIONES (SQL dentro de BigQuery)
 # ---------------------------------------------------------------------------
-@asset(key_prefix=[TEAM], group_name="transformacion", deps=[raw_listings],
+@asset(key_prefix=[TEAM], group_name=f"{TEAM}_transformacion", deps=[raw_listings],
        description="T1 conversión de tipos + T2 limpieza de nulos y duplicados + T3 columnas derivadas")
 def stg_listings(context: AssetExecutionContext, bigquery_dw: BigQueryResource):
     sql = """
@@ -182,7 +182,7 @@ def stg_listings(context: AssetExecutionContext, bigquery_dw: BigQueryResource):
     return _crear_tabla(context, bigquery_dw, "stg_listings", sql)
 
 
-@asset(key_prefix=[TEAM], group_name="transformacion", deps=[raw_reviews],
+@asset(key_prefix=[TEAM], group_name=f"{TEAM}_transformacion", deps=[raw_reviews],
        description="T4 agregación: reseñas totales y de los últimos 12 meses por anuncio")
 def stg_resenas_por_anuncio(context: AssetExecutionContext, bigquery_dw: BigQueryResource):
     sql = """
@@ -209,7 +209,7 @@ def stg_resenas_por_anuncio(context: AssetExecutionContext, bigquery_dw: BigQuer
 # ---------------------------------------------------------------------------
 # 3. MODELO EN ESTRELLA (dimensiones + hechos)
 # ---------------------------------------------------------------------------
-@asset(key_prefix=[TEAM], group_name="modelo_estrella", deps=[raw_neighbourhoods],
+@asset(key_prefix=[TEAM], group_name=f"{TEAM}_modelo_estrella", deps=[raw_neighbourhoods],
        description="Dimensión barrio. Llave sustituta estable con FARM_FINGERPRINT")
 def dim_barrio(context: AssetExecutionContext, bigquery_dw: BigQueryResource):
     sql = """
@@ -224,7 +224,7 @@ def dim_barrio(context: AssetExecutionContext, bigquery_dw: BigQueryResource):
     return _crear_tabla(context, bigquery_dw, "dim_barrio", sql)
 
 
-@asset(key_prefix=[TEAM], group_name="modelo_estrella", deps=[stg_listings],
+@asset(key_prefix=[TEAM], group_name=f"{TEAM}_modelo_estrella", deps=[stg_listings],
        description="Dimensión anfitrión con antigüedad y número de anuncios")
 def dim_anfitrion(context: AssetExecutionContext, bigquery_dw: BigQueryResource):
     sql = """
@@ -244,7 +244,7 @@ def dim_anfitrion(context: AssetExecutionContext, bigquery_dw: BigQueryResource)
     return _crear_tabla(context, bigquery_dw, "dim_anfitrion", sql)
 
 
-@asset(key_prefix=[TEAM], group_name="modelo_estrella", deps=[stg_listings],
+@asset(key_prefix=[TEAM], group_name=f"{TEAM}_modelo_estrella", deps=[stg_listings],
        description="Dimensión tipo de alojamiento, traducida al español")
 def dim_tipo_alojamiento(context: AssetExecutionContext, bigquery_dw: BigQueryResource):
     sql = """
@@ -265,7 +265,7 @@ def dim_tipo_alojamiento(context: AssetExecutionContext, bigquery_dw: BigQueryRe
     return _crear_tabla(context, bigquery_dw, "dim_tipo_alojamiento", sql)
 
 
-@asset(key_prefix=[TEAM], group_name="modelo_estrella",
+@asset(key_prefix=[TEAM], group_name=f"{TEAM}_modelo_estrella",
        deps=[stg_listings, stg_resenas_por_anuncio, dim_barrio, dim_anfitrion, dim_tipo_alojamiento],
        description="Tabla de hechos: un anuncio por fila, con medidas de precio, ocupación y reseñas (T5 join)")
 def fact_listings(context: AssetExecutionContext, bigquery_dw: BigQueryResource):
